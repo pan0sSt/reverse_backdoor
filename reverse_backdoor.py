@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# This application needs to run from the target machine
+
 import socket      # a way of connecting two nodes on a network to communicate with each other.
 import subprocess  # function for shell commands
 import json        # a lightweight data interchange format
